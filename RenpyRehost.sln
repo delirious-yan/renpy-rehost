@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{7D9637DC-FD1F-4765-BEA8-5FFD664D9FBD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RenpyRehost.Core", "src\RenpyRehost.Core\RenpyRehost.Core.csproj", "{52B9384D-2094-4856-A40A-1BD03BA73F85}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RenpyRehost.Cli", "src\RenpyRehost.Cli\RenpyRehost.Cli.csproj", "{84F8640E-29CD-4FCA-A1C7-97E280F40B9B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RenpyRehost.App", "src\RenpyRehost.App\RenpyRehost.App.csproj", "{A7CA0EFA-B3BA-4156-8D4C-7C6C10F5DA43}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{D8CC618E-CD38-4FC7-896C-524A17E59DC5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RenpyRehost.Tests", "tests\RenpyRehost.Tests\RenpyRehost.Tests.csproj", "{D5419F3C-1DFB-46AF-84E9-302E91AB78CF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{52B9384D-2094-4856-A40A-1BD03BA73F85}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{52B9384D-2094-4856-A40A-1BD03BA73F85}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{52B9384D-2094-4856-A40A-1BD03BA73F85}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{52B9384D-2094-4856-A40A-1BD03BA73F85}.Release|Any CPU.Build.0 = Release|Any CPU
+		{84F8640E-29CD-4FCA-A1C7-97E280F40B9B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{84F8640E-29CD-4FCA-A1C7-97E280F40B9B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{84F8640E-29CD-4FCA-A1C7-97E280F40B9B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{84F8640E-29CD-4FCA-A1C7-97E280F40B9B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7CA0EFA-B3BA-4156-8D4C-7C6C10F5DA43}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7CA0EFA-B3BA-4156-8D4C-7C6C10F5DA43}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7CA0EFA-B3BA-4156-8D4C-7C6C10F5DA43}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7CA0EFA-B3BA-4156-8D4C-7C6C10F5DA43}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D5419F3C-1DFB-46AF-84E9-302E91AB78CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D5419F3C-1DFB-46AF-84E9-302E91AB78CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D5419F3C-1DFB-46AF-84E9-302E91AB78CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D5419F3C-1DFB-46AF-84E9-302E91AB78CF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{52B9384D-2094-4856-A40A-1BD03BA73F85} = {7D9637DC-FD1F-4765-BEA8-5FFD664D9FBD}
+		{84F8640E-29CD-4FCA-A1C7-97E280F40B9B} = {7D9637DC-FD1F-4765-BEA8-5FFD664D9FBD}
+		{A7CA0EFA-B3BA-4156-8D4C-7C6C10F5DA43} = {7D9637DC-FD1F-4765-BEA8-5FFD664D9FBD}
+		{D5419F3C-1DFB-46AF-84E9-302E91AB78CF} = {D8CC618E-CD38-4FC7-896C-524A17E59DC5}
+	EndGlobalSection
+EndGlobal

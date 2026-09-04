@@ -1,0 +1,23 @@
+# If your clone sits in a synced folder (OneDrive, Dropbox, etc.), big working
+# data — downloaded SDKs, source games, reconstructed projects, web build output —
+# must NOT live here. It goes in %LOCALAPPDATA%\RenpyRehost\ instead (the CLI
+# defaults there; override with --sdk-cache / --work / --out).
+
+# If any of these ever appear here anyway, don't track them:
+/sdk/
+/games/
+/builds/
+*-dists/
+
+# .NET build output
+bin/
+obj/
+dist/
+
+# Personal/local notes that reference private projects — not for the public repo
+docs/GHOSTVIEW-INTEGRATION.md
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
