@@ -399,11 +399,22 @@ public sealed class MainForm : Form
     private void ShowBrowserMenu(Button anchor)
     {
         _browserMenu.Items.Clear();
+        string? current = GameLauncher.PreferredBrowserExe;
+
+        var sysDefault = new ToolStripMenuItem("System default", null, (_, _) => ChooseBrowser(null))
+        { Checked = current is null };
+        _browserMenu.Items.Add(sysDefault);
+        _browserMenu.Items.Add(new ToolStripSeparator());
+
         var browsers = BrowserCatalog.Installed();
         if (browsers.Count == 0)
-            _browserMenu.Items.Add("(no browsers found)", null, (_, _) => { }).Enabled = false;
+            _browserMenu.Items.Add("(no other browsers found)", null, (_, _) => { }).Enabled = false;
         foreach (var b in browsers)
-            _browserMenu.Items.Add(b.Name, null, (_, _) => PlaySelected(b.ExePath));
+        {
+            string exe = b.ExePath;
+            _browserMenu.Items.Add(new ToolStripMenuItem(b.Name, null, (_, _) => ChooseBrowser(exe))
+            { Checked = current is not null && string.Equals(current, exe, StringComparison.OrdinalIgnoreCase) });
+        }
         _browserMenu.Items.Add(new ToolStripSeparator());
         _browserMenu.Items.Add("Browse…", null, (_, _) =>
         {
@@ -413,9 +424,22 @@ public sealed class MainForm : Form
                 Filter = "Programs (*.exe)|*.exe|All files (*.*)|*.*",
                 InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
             };
-            if (dlg.ShowDialog(this) == DialogResult.OK) PlaySelected(dlg.FileName);
+            if (dlg.ShowDialog(this) == DialogResult.OK) ChooseBrowser(dlg.FileName);
         });
         _browserMenu.Show(anchor, new Point(0, anchor.Height));
+    }
+
+    /// <summary>
+    /// "Choose browser" always remembers the pick as the new default (so plain
+    /// "▶ Play" uses it from now on) and, if a build is selected, plays it now too.
+    /// </summary>
+    private void ChooseBrowser(string? exePath)
+    {
+        GameLauncher.SetPreferredBrowser(exePath);
+        string label = exePath is null ? "the system default browser" : Path.GetFileNameWithoutExtension(exePath);
+        _libStatus.Text = $"Default browser set to {label}.";
+
+        if (SelectedEntry() is { Exists: true }) PlaySelected(browserExe: null);
     }
 
     private void AddExisting()

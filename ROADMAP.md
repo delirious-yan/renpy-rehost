@@ -33,7 +33,7 @@ sub-2-GB Ren'Py game to a running localhost web build with no manual steps.
   8.x is the path for large games.)
 - [ ] Eyeball a served build in a real browser
 - [x] Small clean 8.x VN smoke test — Ren'Py's bundled `the_question`, **18.8 s**, 52 MB
-- [x] Stage tests: 54 passing (RenpyVersion, VersionDetector, Ingest, ZipUtil, LocalWebServer, RpaArchive, ImageOps, PreflightScanner, AssembleStage, Library, Housekeeping)
+- [x] Stage tests: 57 passing (RenpyVersion, VersionDetector, Ingest, ZipUtil, LocalWebServer, RpaArchive, ImageOps, PreflightScanner, AssembleStage, Library, Housekeeping, AppSettings)
 
 **P0 done + P2 core + P1 GUI.** A real Ren'Py game converts and serves via one command
 *with playable video*. Second run on that reference game: 75 `.mkv` cutscenes → WebM
@@ -47,7 +47,7 @@ test, webp→JPEG size win (in the definitive run), audio recompress.
 - [x] `RenpyRehost.App` — **Convert** tab (drop zone + browse, options, 9-stage ListView + live status, dark log pane, cancel) + **Library** tab
 - [x] Library — persisted `library.json`; converts auto-register (with source path); Add existing… / Remove / Show folder / Move (→ `%LOCALAPPDATA%`, → next to the original game (asks + remembers `SourcePath` when unknown), → a picked folder; same-volume rename, cross-volume buffered copy+delete with a progress bar); Play / Choose browser; CLI `rehost library [add|remove|move]` + `rehost play <folder|number>`
 - [x] Result bar: opens the build in a browser when a convert finishes; "Show folder"
-- [x] `GameLauncher` — opens a served URL in the system default browser, a preferred one set via `RENPY_REHOST_BROWSER`, or one picked per run (`--with <exe>`, GUI "Choose browser" reading installed browsers from the registry)
+- [x] `GameLauncher` — opens a served URL in the system default browser, or a remembered preference (`AppSettings.PreferredBrowserExe`, set via `rehost browser <exe>` / GUI "Choose browser", `RENPY_REHOST_BROWSER` env var overrides it); one-off picks via `--with <exe>` (`--save` to also remember it) or the registry-backed browser picker
 - [x] `--emit` writes `rehost.json` (schema 1: title, sourceVersion, builtWith, entry, sizeBytes, notes)
 - [x] `publish.cmd` — portable single-file `rehost.exe` (~90 MB, Magick native libs self-extract; verified: full convert of `the_question` in 20.8 s) + `RenpyRehost.exe`; `install.cmd` — PATH + Start Menu shortcut
 - [ ] Eyeball the GUI on a real desktop; icon + signing

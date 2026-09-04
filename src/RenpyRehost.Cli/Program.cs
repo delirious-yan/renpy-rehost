@@ -23,6 +23,7 @@ try
         "serve" => await CmdServe(rest),
         "play" => await CmdPlay(rest),
         "library" or "lib" => CmdLibrary(rest),
+        "browser" => CmdBrowser(rest),
         "clean" => CmdClean(rest),
         "gui" => CmdGui(),
         "version" or "--version" => PrintVersion(),
@@ -238,15 +239,18 @@ static async Task<int> CmdServe(string[] args)
 static async Task<int> CmdPlay(string[] args)
 {
     if (args.Length == 0)
-        return Fail("Usage: rehost play <web build folder | library number> [--port N] [--with <browser exe>]");
+        return Fail("Usage: rehost play <web build folder | library number> [--port N] [--with <browser exe> [--save]]");
 
     string? browserExe = null;
+    bool save = false;
     int? port = null;
     for (int i = 1; i < args.Length; i++)
     {
         if (args[i] == "--port" && i + 1 < args.Length) port = int.Parse(args[++i]);
         else if (args[i] == "--with" && i + 1 < args.Length) browserExe = args[++i];
+        else if (args[i] == "--save") save = true;
     }
+    if (save && browserExe is null) return Fail("--save needs --with <browser exe>.");
 
     string dir = args[0];
     if (int.TryParse(dir, out var n))
@@ -259,11 +263,13 @@ static async Task<int> CmdPlay(string[] args)
     if (!File.Exists(Path.Combine(dir, "index.html")))
         return Fail($"{dir} doesn't look like a web build (no index.html).");
 
+    if (save) GameLauncher.SetPreferredBrowser(browserExe);
+
     await using var server = LocalWebServer.Start(dir, port);
     string url = server.Url + "index.html";
     if (browserExe is null) GameLauncher.Open(url); else GameLauncher.OpenWith(url, browserExe);
     Console.WriteLine($"serving {dir}");
-    Console.WriteLine($"  {url}  —  opened in your browser");
+    Console.WriteLine($"  {url}  —  opened in your browser" + (save ? " (remembered as the default)" : ""));
     Console.WriteLine("  press Ctrl+C to stop the server");
 
     try
@@ -374,6 +380,31 @@ static string? GameFolderOf(LibraryEntry e)
     return null;
 }
 
+static int CmdBrowser(string[] args)
+{
+    if (args.Length == 0)
+    {
+        string? cur = GameLauncher.PreferredBrowserExe;
+        Console.WriteLine(cur is null
+            ? "Default browser: system default (nothing remembered)."
+            : $"Default browser: {cur}");
+        if (Environment.GetEnvironmentVariable(GameLauncher.PreferredBrowserEnvVar) is { Length: > 0 } env)
+            Console.WriteLine($"  ({GameLauncher.PreferredBrowserEnvVar}={env} is also set and takes priority)");
+        return 0;
+    }
+    if (args[0] is "reset" or "clear" or "default")
+    {
+        GameLauncher.SetPreferredBrowser(null);
+        Console.WriteLine("Reset to the system default browser.");
+        return 0;
+    }
+    string exe = args[0];
+    if (!File.Exists(exe)) return Fail($"Not found: {exe}");
+    GameLauncher.SetPreferredBrowser(exe);
+    Console.WriteLine($"Default browser set to {exe}");
+    return 0;
+}
+
 static int CmdClean(string[] args)
 {
     string appRoot = Path.Combine(
@@ -447,9 +478,10 @@ static void PrintUsage()
           rehost preflight  <game folder or .exe> [--renpy-version x.y.z]
           rehost convert    <game folder or .exe> [options]
           rehost serve      <web build folder> [--port N]
-          rehost play       <web build folder | library number> [--with <browser exe>]
+          rehost play       <web build folder | library number> [--with <browser exe> [--save]]
           rehost library    [add <folder> | remove <folder|number>
                             | move <folder|number> <appdata | game [<game folder>] | folder>]
+          rehost browser    [<browser exe> | reset]   show/set/reset the remembered default browser
           rehost clean      [--dry-run] [--work <dir>]   delete leftover build scratch
           rehost gui        open the desktop app
 
@@ -470,8 +502,11 @@ static void PrintUsage()
           --offline            never hit the network; require a cached SDK
           -v, --verbose        show command lines and per-file detail
 
-        Set RENPY_REHOST_BROWSER to a browser .exe path to make `play`/`convert --serve`
-        prefer it over the system default. `rehost play --with <exe>` picks one per run.
+        `rehost browser <exe>` (or the GUI's "Choose browser") remembers a browser as
+        the default `play`/`convert --serve` opens from now on; `reset` goes back to
+        the system default. `--with <exe>` picks one for a single run; add `--save` to
+        also remember it. The RENPY_REHOST_BROWSER env var overrides the remembered
+        choice, for automation.
 
         Local, single-user use only. See ROADMAP.md for what's implemented.
         """);

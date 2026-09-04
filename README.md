@@ -15,7 +15,7 @@ video remuxed to WebM. See `CONVERSION-LOG.md` and `ROADMAP.md`.
 
 **Stack:** .NET 8, Windows — `RenpyRehost.Core` + `rehost` CLI + WinForms `App`;
 Magick.NET for images, ffmpeg (auto-downloaded) for video, per-version downloaded
-Ren'Py SDK. 54 unit tests.
+Ren'Py SDK. 57 unit tests.
 
 ## Build it
 
@@ -43,6 +43,7 @@ rehost play    "C:\somewhere"          # serve + open in a browser
 rehost play    2                       # play library entry #2
 rehost library                         # list converted builds
 rehost library move 2 appdata          # relocate a build: appdata | game [<folder>] | a folder
+rehost browser "C:\...\chrome.exe"     # remember a browser as the default; `rehost browser reset` clears it
 rehost clean                           # delete leftover build scratch (keeps builds + SDKs)
 rehost detect  "C:\path\to\GameFolder"
 rehost preflight "C:\path\to\GameFolder"
@@ -54,7 +55,8 @@ Or run `RenpyRehost.App` (WinForms): a **Convert** tab (drop a game folder, watc
 you've made, one click to replay — Add… / Remove / Folder / **Move** a build to
 `%LOCALAPPDATA%`, next to its original game, or any folder you pick, with a progress
 bar for a cross-drive copy; **Clean up** deletes leftover build scratch; **Choose
-browser** picks which installed browser to open a build in).
+browser** picks which installed browser opens a build — that pick is remembered as
+the new default until you choose a different one, or "System default" to clear it).
 
 Each build's size shown in the library / on the result bar / after `convert` is the
 **web port only** — not the original game. A successful `convert` deletes its own
@@ -63,10 +65,12 @@ roughly the port size again) unless you pass `--keep-work` or `--reuse-project`.
 `rehost clean` / the GUI's **Clean up** button sweep anything left from older or
 interrupted runs. Downloaded SDKs and ffmpeg are never touched.
 
-**Which browser:** `play` and the GUI open the system default browser by default. Set
-`RENPY_REHOST_BROWSER` to a browser's `.exe` path to make that the preferred one
-instead, pick one per run with `rehost play --with "<exe>"`, or use the GUI's
-**Choose browser** button.
+**Which browser:** `play` and the GUI open the system default browser, unless you've
+remembered a different one — via the GUI's **Choose browser** button or
+`rehost browser "<exe>"` — which sticks until you pick another (`rehost browser reset`
+/ "System default" clears it). `rehost play --with "<exe>"` picks one for a single run
+without changing the remembered default (add `--save` to also remember it). Setting
+`RENPY_REHOST_BROWSER` overrides the remembered choice entirely — handy for scripting.
 
 Key flags: `--renpy-version 8.3.7` (force the SDK — needed for games >~4 GB, which
 hit a Python-2 zip limit on the 7.x line), `--assets off|auto|force`,
