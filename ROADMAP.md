@@ -33,7 +33,7 @@ sub-2-GB Ren'Py game to a running localhost web build with no manual steps.
   8.x is the path for large games.)
 - [ ] Eyeball a served build in a real browser
 - [x] Small clean 8.x VN smoke test — Ren'Py's bundled `the_question`, **18.8 s**, 52 MB
-- [x] Stage tests: 57 passing (RenpyVersion, VersionDetector, Ingest, ZipUtil, LocalWebServer, RpaArchive, ImageOps, PreflightScanner, AssembleStage, Library, Housekeeping, AppSettings)
+- [x] Stage tests: 62 passing (RenpyVersion, VersionDetector, Ingest, ZipUtil, LocalWebServer, RpaArchive, ImageOps, PreflightScanner, AssembleStage, Library, Housekeeping, AppSettings, Log)
 
 **P0 done + P2 core + P1 GUI.** A real Ren'Py game converts and serves via one command
 *with playable video*. Second run on that reference game: 75 `.mkv` cutscenes → WebM
@@ -80,6 +80,7 @@ under the heap ceiling (or the report tells you it needs P5).
 - [x] `Preflight` → `ConversionReport` (blockers / warnings / size profile / recommendation); accurate size breakdown incl. archived contents
 - [x] `PreflightScanner` — keyed/unreadable `.rpa` (index-sanity), obfuscated `.rpyc` (RENPY magic vs source coverage), native `.pyd`/`.so`, and `subprocess`/`os.system`/`renpy.run`/`ctypes`/network/file-write in `.rpy`
 - [x] Blockers hard-stop `convert` (with the list); `--force` overrides; `preflight` subcommand always just reports
+- [x] `Log`/`LoggingProgressSink` — every convert/move/clean writes a full-detail, timestamped log to `%LOCALAPPDATA%\RenpyRehost\logs\` regardless of `-v`; auto-pruned (newest 50); `rehost logs [open]` / GUI "Logs…" button; a failure always names its log. GUI crash handlers (`Application.ThreadException` + `AppDomain.UnhandledException`) log + message-box instead of vanishing; CLI top-level catch broadened to log any unhandled exception, not just `RehostException`.
 - [ ] Peak-working-set estimate from largest-scene asset heuristic
 - [ ] GUI renders the report as a go/-caution/-stop card
 

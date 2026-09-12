@@ -158,10 +158,14 @@ public sealed class MainForm : Form
         refreshBtn.Click += (_, _) => RefreshLibrary();
         _cleanBtn = new Button { Text = "Clean up…", Width = 84, Height = 30, Enabled = false };
         _cleanBtn.Click += (_, _) => CleanUpScratch();
+        var logsBtn = new Button { Text = "Logs…", Width = 58, Height = 30 };
+        logsBtn.Click += (_, _) => OpenLogsFolder();
         foreach (var b in new[] { playBtn, chooseBrowserBtn, showBtn, moveBtn, addBtn, removeBtn, refreshBtn })
         { b.Margin = new Padding(0, 4, 6, 0); libButtons.Controls.Add(b); }
         _cleanBtn.Margin = new Padding(18, 4, 6, 0);
         libButtons.Controls.Add(_cleanBtn);
+        logsBtn.Margin = new Padding(6, 4, 6, 0);
+        libButtons.Controls.Add(logsBtn);
         lib.Controls.Add(libButtons, 0, 1);
 
         _libProgress = new ProgressBar { Dock = DockStyle.Fill, Minimum = 0, Maximum = 1000, Visible = false, Margin = new Padding(0, 1, 0, 3) };
@@ -206,9 +210,9 @@ public sealed class MainForm : Form
         _log.Clear();
         foreach (ListViewItem i in _stages.Items) i.SubItems[1].Text = "";
 
-        string appRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RenpyRehost");
-        var sink = new UiProgressSink();
-        WireSink(sink);
+        string appRoot = AppRoot;
+        var uiSink = new UiProgressSink();
+        WireSink(uiSink);
 
         RenpyVersion? version = null;
         if (_versionBox.Text.Trim() is { Length: > 0 } vt)
@@ -218,6 +222,12 @@ public sealed class MainForm : Form
         }
 
         string name = Path.GetFileNameWithoutExtension(_sourcePath.TrimEnd(Path.DirectorySeparatorChar));
+
+        // Full detail always goes to a log file, so a bad run leaves a trail to
+        // troubleshoot from even though the log pane only shows the summary.
+        using var log = Log.Start($"convert-{name}", appRoot);
+        var sink = new LoggingProgressSink(uiSink, log);
+
         var options = new ConversionOptions
         {
             SdkCacheDir = Path.Combine(appRoot, "sdk"),
@@ -230,36 +240,55 @@ public sealed class MainForm : Form
             AssetPipeline = Enum.Parse<AssetPipelineMode>(_assetsBox.Text, ignoreCase: true),
         };
 
-        var ctx = new ConversionContext(Path.GetFullPath(_sourcePath), options, sink);
-        var result = await Task.Run(() => PipelineRunner.Default().RunAsync(ctx, _cts.Token));
-
-        if (result.Success)
+        try
         {
-            _lastOutputDir = ctx.ServeDir;
-            _lastUrl = ctx.ServeUrl;
+            var ctx = new ConversionContext(Path.GetFullPath(_sourcePath), options, sink);
+            var result = await Task.Run(() => PipelineRunner.Default().RunAsync(ctx, _cts.Token));
 
-            if (ctx.ServeDir is { } built)
+            if (result.Success)
             {
-                try { var l = Library.Load(); l.AddOrUpdate(built, _sourcePath); l.Save(); } catch { }
-            }
+                _lastOutputDir = ctx.ServeDir;
+                _lastUrl = ctx.ServeUrl;
 
-            string size = ctx.Notes.TryGetValue("size", out var s) ? $"  ·  web build {s}" : "";
+                if (ctx.ServeDir is { } built)
+                {
+                    try { var l = Library.Load(); l.AddOrUpdate(built, _sourcePath); l.Save(); } catch { }
+                }
 
-            if (ctx.RunningServer is { } srv && ctx.ServeUrl is { } url)
-            {
-                await SwapServer(srv);
-                GameLauncher.Open(url);
-                _resultLink.Text = $"Playing in your browser{size} — {url}";
+                string size = ctx.Notes.TryGetValue("size", out var s) ? $"  ·  web build {s}" : "";
+
+                if (ctx.RunningServer is { } srv && ctx.ServeUrl is { } url)
+                {
+                    await SwapServer(srv);
+                    GameLauncher.Open(url);
+                    _resultLink.Text = $"Playing in your browser{size} — {url}";
+                }
+                else
+                {
+                    _resultLink.Text = $"Build ready{size} — {ctx.ServeDir}";
+                }
+                _resultBar.Visible = true;
+                AppendLog($"\r\nlog: {log.Path}", false);
             }
             else
             {
-                _resultLink.Text = $"Build ready{size} — {ctx.ServeDir}";
+                log.Exception($"convert failed at {result.FailedStage}", result.Error);
+                AppendLog($"\r\nFAILED at {result.FailedStage}: {result.Error?.Message}", true);
+                AppendLog($"log: {log.Path}", true);
             }
-            _resultBar.Visible = true;
         }
-        else
+        catch (OperationCanceledException)
         {
-            AppendLog($"\r\nFAILED at {result.FailedStage}: {result.Error?.Message}", true);
+            AppendLog("\r\ncancelled.", true);
+        }
+        catch (Exception ex)
+        {
+            // Shouldn't happen — PipelineRunner catches stage failures itself — but
+            // an async void click handler crashes the whole app on anything that
+            // gets past here, so log it and stay up rather than vanish.
+            log.Exception("convert hit an unexpected error", ex);
+            AppendLog($"\r\nUNEXPECTED ERROR: {ex.Message}", true);
+            AppendLog($"log: {log.Path}", true);
         }
         ResetGo();
     }
@@ -339,6 +368,21 @@ public sealed class MainForm : Form
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RenpyRehost");
     private static string WorkDir => Path.Combine(AppRoot, "work");
 
+    /// <summary>Log a caught exception with full detail and return where it landed — for a status/MessageBox pointer.</summary>
+    private static string LogFailure(string operation, Exception ex)
+    {
+        using var log = Log.Start(operation, AppRoot);
+        log.Exception(operation, ex);
+        return log.Path;
+    }
+
+    private static void OpenLogsFolder()
+    {
+        string dir = Log.LogDir(AppRoot);
+        Directory.CreateDirectory(dir);
+        OpenFolder(dir);
+    }
+
     private async Task UpdateScratchButtonAsync()
     {
         long bytes = await Task.Run(() => Housekeeping.SurveyWork(WorkDir).bytes);
@@ -362,8 +406,19 @@ public sealed class MainForm : Form
 
         _cleanBtn.Enabled = false;
         _libStatus.Text = "Cleaning…";
-        long freed = await Task.Run(() => Housekeeping.CleanAllWork(WorkDir));
-        _libStatus.Text = $"Reclaimed {Humanize.Bytes(freed)}.";
+        try
+        {
+            using var log = Log.Start("clean", AppRoot);
+            long freed = await Task.Run(() => Housekeeping.CleanAllWork(WorkDir, log));
+            _libStatus.Text = freed < bytes
+                ? $"Reclaimed {Humanize.Bytes(freed)} — some couldn't be deleted (probably in use), see Logs…"
+                : $"Reclaimed {Humanize.Bytes(freed)}.";
+        }
+        catch (Exception ex)
+        {
+            LogFailure("clean", ex);
+            _libStatus.Text = $"Clean-up failed: {ex.Message}  (see Logs…)";
+        }
         RefreshLibrary();
     }
 
@@ -456,7 +511,8 @@ public sealed class MainForm : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "Ren'Py Rehost");
+            LogFailure("add-existing", ex);
+            MessageBox.Show(this, $"{ex.Message}\n\n(details logged — see the Logs… button)", "Ren'Py Rehost");
         }
     }
 
@@ -465,10 +521,18 @@ public sealed class MainForm : Form
         if (SelectedEntry() is not { } e) return;
         if (MessageBox.Show(this, $"Remove “{e.Title}” from the library?\n\nThe build files on disk are left alone.",
                 "Ren'Py Rehost", MessageBoxButtons.YesNo) != DialogResult.Yes) return;
-        var lib = Library.Load();
-        lib.Remove(e.Path);
-        lib.Save();
-        RefreshLibrary();
+        try
+        {
+            var lib = Library.Load();
+            lib.Remove(e.Path);
+            lib.Save();
+            RefreshLibrary();
+        }
+        catch (Exception ex)
+        {
+            LogFailure("remove", ex);
+            MessageBox.Show(this, $"{ex.Message}\n\n(details logged — see the Logs… button)", "Ren'Py Rehost");
+        }
     }
 
     private static string? GameFolderOf(LibraryEntry? e)
@@ -527,6 +591,8 @@ public sealed class MainForm : Form
                 : $"Moving “{e.Title}” — {p.Fraction * 100:0}%  ({Humanize.Bytes(p.BytesDone)} / {Humanize.Bytes(p.BytesTotal)})";
         });
 
+        using var log = Log.Start("move", AppRoot);
+        log.WriteLine($"move \"{e.Path}\" -> \"{destParent}\"");
         try
         {
             string moved = await Task.Run(() =>
@@ -536,12 +602,14 @@ public sealed class MainForm : Form
                 lib.Save();
                 return p;
             });
+            log.WriteLine($"moved to \"{moved}\"");
             RefreshLibrary();
             _libStatus.Text = $"Moved “{e.Title}” → {moved}";
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "Ren'Py Rehost");
+            log.Exception("move failed", ex);
+            MessageBox.Show(this, $"{ex.Message}\n\n(details logged — see the Logs… button)", "Ren'Py Rehost");
             _libStatus.Text = "Move failed.";
         }
         finally

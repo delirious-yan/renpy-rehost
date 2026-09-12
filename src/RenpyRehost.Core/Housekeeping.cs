@@ -57,7 +57,7 @@ public static class Housekeeping
         }
     }
 
-    /// <summary>Delete this conversion's scratch. Returns bytes reclaimed. Never throws.</summary>
+    /// <summary>Delete this conversion's scratch. Returns bytes reclaimed. Never throws — a failure is logged via <see cref="ConversionContext.Progress"/> and left for next time.</summary>
     public static long CleanScratch(ConversionContext ctx)
     {
         long freed = 0;
@@ -68,7 +68,12 @@ public static class Housekeeping
                 freed += DirSize(dir);
                 Directory.Delete(dir, recursive: true);
             }
-            catch { /* best effort — a locked file just means we free it next time */ }
+            catch (Exception ex)
+            {
+                // Best effort — a locked file just means we free it next time — but
+                // say so, rather than silently leaving scratch behind unexplained.
+                ctx.Progress.Warn($"couldn't clean up {dir}: {ex.Message}");
+            }
         }
         return freed;
     }
@@ -87,7 +92,7 @@ public static class Housekeeping
     }
 
     /// <summary>Delete every conversion's scratch under a work root (keeps SDKs and tools). Returns bytes reclaimed.</summary>
-    public static long CleanAllWork(string workDir)
+    public static long CleanAllWork(string workDir, Log? log = null)
     {
         long freed = 0;
         foreach (var dir in WorkScratchDirs(workDir))
@@ -97,7 +102,10 @@ public static class Housekeeping
                 freed += DirSize(dir);
                 Directory.Delete(dir, recursive: true);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                log?.Exception($"couldn't delete {dir}", ex);
+            }
         }
         return freed;
     }

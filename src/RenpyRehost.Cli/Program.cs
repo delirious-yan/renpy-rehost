@@ -25,6 +25,7 @@ try
         "library" or "lib" => CmdLibrary(rest),
         "browser" => CmdBrowser(rest),
         "clean" => CmdClean(rest),
+        "logs" or "log" => CmdLogs(rest),
         "gui" => CmdGui(),
         "version" or "--version" => PrintVersion(),
         _ => Fail($"Unknown command '{command}'. Try `rehost help`."),
@@ -33,6 +34,17 @@ try
 catch (RehostException ex)
 {
     Console.Error.WriteLine($"error: {ex.Message}");
+    return 1;
+}
+catch (Exception ex)
+{
+    // Anything that wasn't already turned into a RehostException — log the full
+    // trace so an unexpected failure (a move, a locked file, ...) is still
+    // troubleshootable rather than just a one-line message.
+    using var crashLog = Log.Start($"error-{command}");
+    crashLog.Exception($"`rehost {command}` failed unexpectedly", ex);
+    Console.Error.WriteLine($"error: {ex.Message}");
+    Console.Error.WriteLine($"  (unexpected — full detail logged to {crashLog.Path})");
     return 1;
 }
 
@@ -89,8 +101,12 @@ static async Task<int> CmdConvert(string[] args, bool preflightOnly)
         Verbose = opt.Verbose,
     };
     bool verbose = opt.Verbose;
+    string gameName = Path.GetFileNameWithoutExtension(source.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
 
-    var sink = new ConsoleProgressSink(verbose);
+    // Full detail always goes to a log file, regardless of -v — that's the console's
+    // call, not the trail we keep to troubleshoot from afterwards.
+    using var log = Log.Start($"{(preflightOnly ? "preflight" : "convert")}-{gameName}", appRoot);
+    var sink = new LoggingProgressSink(new ConsoleProgressSink(verbose), log);
     var ctx = new ConversionContext(Path.GetFullPath(source), options, sink);
 
     using var cts = new CancellationTokenSource();
@@ -106,6 +122,7 @@ static async Task<int> CmdConvert(string[] args, bool preflightOnly)
         });
         var r = await runner.RunAsync(ctx, cts.Token);
         if (ctx.Report is { } rep) PrintReport(rep);
+        if (!r.Success) log.Exception($"preflight failed at {r.FailedStage}", r.Error);
         return r.Success ? 0 : 1;
     }
 
@@ -113,7 +130,9 @@ static async Task<int> CmdConvert(string[] args, bool preflightOnly)
     Console.WriteLine();
     if (!result.Success)
     {
+        log.Exception($"convert failed at {result.FailedStage}", result.Error);
         Console.Error.WriteLine($"failed at {result.FailedStage}: {result.Error?.Message}");
+        Console.Error.WriteLine($"  full log: {log.Path}");
         return 1;
     }
 
@@ -121,6 +140,7 @@ static async Task<int> CmdConvert(string[] args, bool preflightOnly)
     if (ctx.Notes.TryGetValue("size", out var sz))
         Console.WriteLine($"  port size: {sz}   (the web build only — not the original game)");
     if (ctx.Notes.TryGetValue("assets", out var ap)) Console.WriteLine($"  assets: {ap}");
+    if (verbose) Console.WriteLine($"  full log: {log.Path}");
 
     if (ctx.ServeDir is { } built)
     {
@@ -343,10 +363,25 @@ static int CmdLibrary(string[] args)
             if (p.Instant) return;
             Console.Write($"\r  copying… {p.Fraction * 100,5:0.0}%  ({Humanize.Bytes(p.BytesDone)} / {Humanize.Bytes(p.BytesTotal)})   ");
         });
-        string moved = lib.Move(entry.Path, destParent, bar);
-        lib.Save();
-        Console.WriteLine($"\rmoved: {moved}".PadRight(60));
-        return 0;
+
+        using var log = Log.Start("library-move");
+        log.WriteLine($"move \"{entry.Path}\" -> \"{destParent}\"");
+        try
+        {
+            string moved = lib.Move(entry.Path, destParent, bar);
+            lib.Save();
+            log.WriteLine($"moved to \"{moved}\"");
+            Console.WriteLine($"\rmoved: {moved}".PadRight(60));
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            log.Exception("move failed", ex);
+            Console.Error.WriteLine();
+            Console.Error.WriteLine($"error: {ex.Message}");
+            Console.Error.WriteLine($"  full log: {log.Path}");
+            return 1;
+        }
     }
 
     if (lib.Entries.Count == 0)
@@ -405,6 +440,38 @@ static int CmdBrowser(string[] args)
     return 0;
 }
 
+static int CmdLogs(string[] args)
+{
+    string dir = Log.LogDir();
+    if (args.Length > 0 && args[0] == "open")
+    {
+        Directory.CreateDirectory(dir);
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{dir}\"") { UseShellExecute = true });
+        return 0;
+    }
+
+    if (!Directory.Exists(dir))
+    {
+        Console.WriteLine("No logs yet — they show up here the first time something is converted, moved, or fails.");
+        return 0;
+    }
+    var files = new DirectoryInfo(dir).GetFiles("*.log").OrderByDescending(f => f.LastWriteTimeUtc).ToList();
+    if (files.Count == 0)
+    {
+        Console.WriteLine("No logs yet — they show up here the first time something is converted, moved, or fails.");
+        return 0;
+    }
+
+    Console.WriteLine(dir);
+    Console.WriteLine();
+    foreach (var f in files.Take(20))
+        Console.WriteLine($"  {f.LastWriteTime:yyyy-MM-dd HH:mm:ss}  {Humanize.Bytes(f.Length),8}  {f.Name}");
+    if (files.Count > 20) Console.WriteLine($"  ... and {files.Count - 20} more");
+    Console.WriteLine();
+    Console.WriteLine("rehost logs open   — open the folder");
+    return 0;
+}
+
 static int CmdClean(string[] args)
 {
     string appRoot = Path.Combine(
@@ -426,8 +493,11 @@ static int CmdClean(string[] args)
 
     if (dryRun) { Console.WriteLine("dry run — nothing deleted."); return 0; }
 
-    long freed = Housekeeping.CleanAllWork(workDir);
+    using var log = Log.Start("clean", appRoot);
+    long freed = Housekeeping.CleanAllWork(workDir, log);
     Console.WriteLine($"reclaimed {Humanize.Bytes(freed)}.");
+    if (freed < bytes)
+        Console.WriteLine($"  {Humanize.Bytes(bytes - freed)} couldn't be deleted (probably in use) — see {log.Path}");
     return 0;
 }
 
@@ -483,6 +553,7 @@ static void PrintUsage()
                             | move <folder|number> <appdata | game [<game folder>] | folder>]
           rehost browser    [<browser exe> | reset]   show/set/reset the remembered default browser
           rehost clean      [--dry-run] [--work <dir>]   delete leftover build scratch
+          rehost logs       [open]   list (or open the folder of) troubleshooting logs
           rehost gui        open the desktop app
 
         CONVERT OPTIONS
@@ -507,6 +578,10 @@ static void PrintUsage()
         the system default. `--with <exe>` picks one for a single run; add `--save` to
         also remember it. The RENPY_REHOST_BROWSER env var overrides the remembered
         choice, for automation.
+
+        Every convert/move/clean writes a full-detail log to %LOCALAPPDATA%\RenpyRehost\logs\
+        regardless of -v — that's what to send along if something needs troubleshooting.
+        `rehost logs` lists them, `rehost logs open` opens the folder.
 
         Local, single-user use only. See ROADMAP.md for what's implemented.
         """);

@@ -15,7 +15,7 @@ video remuxed to WebM. See `CONVERSION-LOG.md` and `ROADMAP.md`.
 
 **Stack:** .NET 8, Windows — `RenpyRehost.Core` + `rehost` CLI + WinForms `App`;
 Magick.NET for images, ffmpeg (auto-downloaded) for video, per-version downloaded
-Ren'Py SDK. 57 unit tests.
+Ren'Py SDK. 62 unit tests.
 
 ## Build it
 
@@ -45,6 +45,7 @@ rehost library                         # list converted builds
 rehost library move 2 appdata          # relocate a build: appdata | game [<folder>] | a folder
 rehost browser "C:\...\chrome.exe"     # remember a browser as the default; `rehost browser reset` clears it
 rehost clean                           # delete leftover build scratch (keeps builds + SDKs)
+rehost logs                            # list troubleshooting logs; `rehost logs open` opens the folder
 rehost detect  "C:\path\to\GameFolder"
 rehost preflight "C:\path\to\GameFolder"
 rehost gui                             # open the desktop app
@@ -56,7 +57,19 @@ you've made, one click to replay — Add… / Remove / Folder / **Move** a build
 `%LOCALAPPDATA%`, next to its original game, or any folder you pick, with a progress
 bar for a cross-drive copy; **Clean up** deletes leftover build scratch; **Choose
 browser** picks which installed browser opens a build — that pick is remembered as
-the new default until you choose a different one, or "System default" to clear it).
+the new default until you choose a different one, or "System default" to clear it;
+**Logs…** opens the troubleshooting log folder).
+
+## Troubleshooting
+
+Every `convert`, `library move`, and `clean` writes a full-detail, timestamped log to
+`%LOCALAPPDATA%\RenpyRehost\logs\` — regardless of `-v`, so a run that looked fine on
+screen still leaves a trail, and a failure always names the exact log to check
+(printed to the console / the GUI's log pane). `rehost logs` lists them, `rehost logs
+open` (or the GUI's **Logs…** button) opens the folder. An unexpected failure anywhere
+— including a GUI crash that would otherwise just close the window — gets caught and
+logged too, with the full exception and stack trace. Old logs are pruned automatically
+(newest 50 kept) so the folder doesn't grow forever.
 
 Each build's size shown in the library / on the result bar / after `convert` is the
 **web port only** — not the original game. A successful `convert` deletes its own
