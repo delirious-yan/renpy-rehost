@@ -23,16 +23,24 @@ Ian grants the AI models he chooses standing permission to use full task-relevan
 
 
 
+### owner command semantics
+
+When Ian says `check mindself`, `check mind repo`, `check self repo`, `use mindself`, or an obvious equivalent, that explicitly authorizes reading mind-self **and writing the reconciliation delta back to mind-self** under its protocol.
+
+For these commands, `check` is not read-only.
+
+This standing authorization is limited to mind-self maintenance and continuity metadata. It does not by itself authorize unrelated changes in this repository or any external/production/customer-facing system.
+
 ### automatic persistence on fresh instances
 
 No introduction to mind-self is required. If an AI in this project encounters, opens, or reads mind-self, that discovery is sufficient to activate its bootstrap, reconciliation, persistence, and synchronization rules.
 
 For this project, `delirious-yan/mind-self/state/reconciliation.json` tracks whether the one-time historical backfill has been completed.
 
-- If this project's `initial_backfill` is `pending`, encountering mind-self itself triggers the initial historical reconciliation automatically. No separate backfill prompt or briefing from Ian is required. After success, mark it `complete`.
-- Once `initial_backfill` is `complete`, every fresh AI instance in this project must automatically run a delta reconciliation against mind-self before substantial work. Ian does not need to ask again.
+- Reconciliation is tracked per provider/environment source in `delirious-yan/mind-self/state/reconciliation.json`. If this source has no completed entry for this project, encountering mind-self triggers its initial historical reconciliation automatically. Another model/provider's completion does not count for this source.
+- After this source environment completes its initial reconciliation, every fresh instance from the same source automatically runs delta reconciliation against mind-self before substantial work. Ian does not need to ask again.
 - A startup reconciliation may produce no writes when there is no meaningful delta.
-- Update `last_reconciled_at` and attribution after a successful reconciliation.
+- Update this source's reconciliation entry using an authoritative runtime/platform timestamp after a successful reconciliation. Never estimate timestamps.
 - Do not repeatedly bulk-import prior context; follow mind-self's semantic deduplication and ingestion protocol.
 
 For newly created Ian-owned projects after this protocol is known, initial enrollment and reconciliation happen automatically on first substantial AI access with GitHub available; no one-time backfill prompt is required.
