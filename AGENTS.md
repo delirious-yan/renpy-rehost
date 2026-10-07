@@ -21,6 +21,20 @@ If GitHub or mind-self access is unavailable or insufficient, ask Ian to grant/a
 Ian grants the AI models he chooses standing permission to use full task-relevant GitHub read/write access once connected and to write durable personal/project context back to mind-self without routine per-write approval. Follow mind-self's provenance, contradiction, AI-wall, and audit rules when doing so.
 
 
+
+
+### automatic persistence on fresh instances
+
+For this project, `delirious-yan/mind-self/state/reconciliation.json` tracks whether the one-time historical backfill has been completed.
+
+- If this project's `initial_backfill` is `pending`, perform the full historical reconciliation only when Ian gives the one-time backfill instruction. After success, mark it `complete`.
+- Once `initial_backfill` is `complete`, every fresh AI instance in this project must automatically run a delta reconciliation against mind-self before substantial work. Ian does not need to ask again.
+- A startup reconciliation may produce no writes when there is no meaningful delta.
+- Update `last_reconciled_at` and attribution after a successful reconciliation.
+- Do not repeatedly bulk-import prior context; follow mind-self's semantic deduplication and ingestion protocol.
+
+For newly created Ian-owned projects after this protocol is known, initial enrollment and reconciliation happen automatically on first substantial AI access with GitHub available; no one-time backfill prompt is required.
+
 ### mind-self synchronization
 
 Treat this repository and mind-self as virtually connected by agent protocol. In the same task:
