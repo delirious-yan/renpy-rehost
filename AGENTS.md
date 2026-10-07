@@ -25,9 +25,11 @@ Ian grants the AI models he chooses standing permission to use full task-relevan
 
 ### automatic persistence on fresh instances
 
+No introduction to mind-self is required. If an AI in this project encounters, opens, or reads mind-self, that discovery is sufficient to activate its bootstrap, reconciliation, persistence, and synchronization rules.
+
 For this project, `delirious-yan/mind-self/state/reconciliation.json` tracks whether the one-time historical backfill has been completed.
 
-- If this project's `initial_backfill` is `pending`, perform the full historical reconciliation only when Ian gives the one-time backfill instruction. After success, mark it `complete`.
+- If this project's `initial_backfill` is `pending`, encountering mind-self itself triggers the initial historical reconciliation automatically. No separate backfill prompt or briefing from Ian is required. After success, mark it `complete`.
 - Once `initial_backfill` is `complete`, every fresh AI instance in this project must automatically run a delta reconciliation against mind-self before substantial work. Ian does not need to ask again.
 - A startup reconciliation may produce no writes when there is no meaningful delta.
 - Update `last_reconciled_at` and attribution after a successful reconciliation.
